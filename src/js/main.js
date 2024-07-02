@@ -18,6 +18,7 @@ class FunnelGraph {
         this.subLabels = FunnelGraph.getSubLabels(options);
         this.values = FunnelGraph.getValues(options);
         this.percentages = this.createPercentages();
+        this.delatPercentages = this.createDeltaPercentages();
         this.colors = options.data.colors || getDefaultColors(this.is2d() ? this.getSubDataSize() : 2);
         this.displayPercent = options.displayPercent || false;
         this.data = options.data;
@@ -188,6 +189,14 @@ class FunnelGraph {
             if (this.displayPercent) {
                 labelElement.appendChild(percentageValue);
             }
+            if (this.displayPercent && index > 1) {
+                const deltaPercentage = document.createElement('div');
+                deltaPercentage.setAttribute('class', 'label__delta-percentage');
+                deltaPercentage.textContent = `${this.delatPercentages[index]}% of ${this.labels[index-1]}`;
+                labelElement.appendChild(deltaPercentage);
+
+            }
+
 
             if (this.is2d()) {
                 const segmentPercentages = document.createElement('div');
@@ -201,12 +210,31 @@ class FunnelGraph {
                         ? `${twoDimPercentages[index][j]}%`
                         : formatNumber(this.values[index][j]);
                     percentageList += `<li>${this.subLabels[j]}:
-    <span class="percentage__list-label">${subLabelDisplayValue}</span>
- </li>`;
+                    <span class="percentage__list-label">${subLabelDisplayValue}</span>
+                </li>`;
                 });
                 percentageList += '</ul>';
                 segmentPercentages.innerHTML = percentageList;
                 labelElement.appendChild(segmentPercentages);
+
+                // Repeat for the deltaPercentages
+                if (index > 1) {
+                    const deltaPercentages = document.createElement('div');
+                    deltaPercentages.setAttribute('class', 'label__delta-percentages');
+                    let deltaPercentageList = '<ul class="delta-percentage__list">';
+                    const twoDimDeltaPercentages = this.getDeltaPercentages2d();
+                    this.subLabels.forEach((subLabel, j) => {
+                        const subLabelDisplayValue = this.subLabelValue === 'percent'
+                            ? `${twoDimDeltaPercentages[index][j]}%`
+                            : formatNumber(this.values[index][j]);
+                    deltaPercentageList += `<li>${this.subLabels[j]}:
+                        <span class="delta-percentage__list-label">${subLabelDisplayValue} of ${this.labels[index-1]}</span>
+                        </li>`;
+                    })
+                    deltaPercentageList += '</ul>';
+                    deltaPercentages.innerHTML = deltaPercentageList;
+                    labelElement.appendChild(deltaPercentages);
+                }
             }
 
             holder.appendChild(labelElement);
@@ -317,6 +345,19 @@ class FunnelGraph {
         return percentages;
     }
 
+    getDeltaPercentages2d() {
+        const percentages = [];
+
+        this.values.forEach((valueSet) => {
+            const total = valueSet.reduce((sum, value) => sum + value, 0);
+            percentages.push(valueSet.map((value, index) => {
+                return (total === 0 | index < 2 ? 0 : roundPoint(value * 100 / valueSet[index - 1]));
+            }));
+        });
+
+        return percentages;
+    }
+
     createPercentages() {
         let values = [];
 
@@ -328,6 +369,19 @@ class FunnelGraph {
 
         const max = Math.max(...values);
         return values.map(value => (value === 0 ? 0 : roundPoint(value * 100 / max)));
+    }
+
+    createDeltaPercentages() {
+        let values = [];
+
+        if (this.is2d()) {
+            values = this.getValues2d();
+        } else {
+            values = [...this.values];
+        }
+
+        const max = Math.max(...values);
+        return values.map((value,index) => (value === 0 || index < 2 ? 0 : roundPoint(value * 100 / values[index-1])));
     }
 
     applyGradient(svg, path, colors, index) {
@@ -607,6 +661,7 @@ class FunnelGraph {
         this.colors = getDefaultColors(this.is2d() ? this.getSubDataSize() : 2);
         this.values = [];
         this.percentages = [];
+        this.delatPercentages = [];
 
         if (typeof d.labels !== 'undefined') {
             this.labels = FunnelGraph.getLabels({ data: d });
@@ -625,6 +680,7 @@ class FunnelGraph {
             this.drawPaths();
         }
         this.percentages = this.createPercentages();
+        this.delatPercentages = this.createDeltaPercentages();
 
         this.addLabels();
 
